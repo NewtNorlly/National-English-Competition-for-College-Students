@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背景音乐播放器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#6366f1',
+                        dark: '#1e293b',
+                        light: '#f1f5f9'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .music-shadow {
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            }
+            .btn-hover {
+                @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
+            }
+            .progress-container {
+                @apply relative h-1 bg-gray-200 rounded-full overflow-hidden cursor-pointer;
+            }
+            .progress-handle {
+                @apply absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md opacity-0 transition-opacity duration-200;
+            }
+            .progress-container:hover .progress-handle {
+                @apply opacity-100;
+            }
+            .player-container {
+                @apply transition-all duration-1000 ease-in-out;
+            }
+            .bg-cover {
+                background-size: cover;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }
+            .bing-bg-container {
+                @apply w-full h-full fixed inset-0 z-[-1] overflow-hidden;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 relative overflow-hidden" id="body-bg">
+    <div class="bing-bg-container" id="bing-bg-container"></div>
+
+    <div class="flex justify-center items-center min-h-screen relative z-10">
+        <div class="player-container w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl music-shadow overflow-hidden" id="player-container">
+            
+            <!-- 封面区域：移除背景渐变，图片正常显示 -->
+            <div class="relative h-64">
+                <img src="湘城木叶下.gif" alt="湘城木叶下" class="w-full h-full object-cover">
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <i class="fa fa-music text-white text-6xl drop-shadow-lg"></i>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <h2 id="current-song" class="text-xl font-bold text-dark text-center mb-2">又见炊烟 - 邓丽君</h2>
+                
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-500 mb-1">
+                        <span id="current-time">0:00</span>
+                        <span id="total-time">0:00</span>
+                    </div>
+                    <div class="progress-container" id="progress-container">
+                        <div id="progress-bar" class="h-full bg-primary w-0"></div>
+                        <div class="progress-handle" id="progress-handle"></div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center mb-6">
+                    <button id="prev-btn" class="text-gray-600 hover:text-primary btn-hover">
+                        <i class="fa fa-step-backward text-xl"></i>
+                    </button>
+                    <button id="play-btn" class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center btn-hover">
+                        <i class="fa fa-play text-xl"></i>
+                    </button>
+                    <button id="next-btn" class="text-gray-600 hover:text-primary btn-hover">
+                        <i class="fa fa-step-forward text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="flex items-center mb-6">
+                    <i class="fa fa-volume-up text-gray-600 mr-2"></i>
+                    <input type="range" id="volume-control" min="0" max="1" step="0.01" value="0.7" 
+                           class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary">
+                </div>
+                
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-500 mb-2 flex items-center">
+                        <i class="fa fa-list-ul mr-1"></i> 播放列表
+                    </h3>
+                    <ul class="space-y-2 max-h-40 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" id="playlist">
+                        
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="audio-player" loop preload="metadata">
+        <source src="又见炊烟 - 邓丽君.mp3" type="audio/mpeg">
+        您的浏览器不支持音频播放，请更新浏览器版本
+    </audio>
+    
+    <script>
+        const songs = [
+            { title: "又见炊烟 - 邓丽君", src: "又见炊烟 - 邓丽君.mp3" },
+            { title: "望春风 - 陈佳", src: "望春风 - 陈佳.mp3" },
+            { title: "13年大英赛决赛听力", src: "13年大英赛决赛听力.mp3" },
+            { title: "13年大英赛初赛听力", src: "13年大英赛初赛听力.mp3" },
+            { title: "14年大英赛决赛听力", src: "14年大英赛决赛听力.mp3" },
+            { title: "14年大英赛初赛听力", src: "14年大英赛初赛听力.mp3" },
+            { title: "15年大英赛决赛", src: "15年大英赛决赛.mp3" },
+            { title: "15年大英赛初赛", src: "15年大英赛初赛.mp3" },
+            { title: "16年大英赛决赛听力", src: "16年大英赛决赛听力.mp3" },
+            { title: "16年大英赛初赛听力", src: "16年大英赛初赛听力.mp3" },
+            { title: "17年大英赛初赛听力", src: "17年大英赛初赛听力.mp3" },
+            { title: "2012年C类决赛", src: "2012年C类决赛.mp3" },
+            { title: "2012年C类初赛", src: "2012年C类初赛.mp3" },
+            { title: "2020年大英赛初赛听力", src: "2020年大英赛初赛听力.mp3" },
+            { title: "2021年决赛听力", src: "2021年决赛听力.mp3" },
+            { title: "2021年初赛听力", src: "2021年初赛听力.mp3" },
+            { title: "2022年C类5月初赛", src: "2022年C类5月初赛.mp3" },
+            { title: "2022年C类9月初赛", src: "2022年C类9月初赛.mp3" },
+            { title: "2022年决赛", src: "2022年决赛.mp3" },
+            { title: "2024年大学生英语竞赛C类（决赛）", src: "2024年大学生英语竞赛C类（决赛）.mp3" },
+            { title: "2024年大学生英语竞赛C类（初赛）", src: "2024年大学生英语竞赛C类（初赛）.mp3" },
+            { title: "20年大英赛决赛听力", src: "20年大英赛决赛听力.mp3" },
+            { title: "23年-C类-决赛", src: "23年-C类-决赛.mp3" },
+            { title: "23年-C类-初赛", src: "23年-C类-初赛.mp3" }
+        ];
+
+        const audioPlayer = document.getElementById('audio-player');
+        const playBtn = document.getElementById('play-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const progressHandle = document.getElementById('progress-handle');
+        const currentTimeEl = document.getElementById('current-time');
+        const totalTimeEl = document.getElementById('total-time');
+        const currentSongEl = document.getElementById('current-song');
+        const volumeControl = document.getElementById('volume-control');
+        const playlistEl = document.getElementById('playlist');
+        const playerContainer = document.getElementById('player-container');
+        const bodyBg = document.getElementById('body-bg');
+        const bingBgContainer = document.getElementById('bing-bg-container');
+
+        let currentSongIndex = 0;
+        let isPlaying = false;
+        let isDragging = false;
+
+        document.addEventListener('DOMContentLoaded', initPlayer);
+
+        function initPlayer() {
+            loadBingPageAsBackground();
+            generatePlaylist();
+            loadSong(currentSongIndex);
+            bindAllEvents();
+        }
+
+        function loadBingPageAsBackground() {
+            const bingIframe = document.createElement('iframe');
+            bingIframe.src = 'https://bing.wdbyte.com/zh-cn/';
+            bingIframe.className = 'w-full h-full border-0';
+            bingIframe.style.filter = 'brightness(0.8)';
+            bingIframe.title = '必应背景页面';
+
+            bingIframe.onload = () => {
+                console.log('必应背景页面加载完成');
+                bingBgContainer.style.opacity = '0';
+                setTimeout(() => {
+                    bingBgContainer.style.transition = 'opacity 1s ease';
+                    bingBgContainer.style.opacity = '1';
+                }, 300);
+            };
+
+            bingIframe.onerror = () => {
+                console.error('必应背景页面加载失败，使用降级背景');
+                bingBgContainer.style.backgroundImage = `url('https://picsum.photos/1920/1080?random=${Math.floor(Math.random() * 100)}')`;
+                bingBgContainer.classList.add('bg-cover', 'bg-center');
+            };
+
+            bingBgContainer.appendChild(bingIframe);
+        }
+
+        function generatePlaylist() {
+            playlistEl.innerHTML = '';
+            songs.forEach((song, index) => {
+                const li = document.createElement('li');
+                li.className = `song-item p-2 rounded-lg cursor-pointer flex justify-between items-center transition-colors ${
+                    index === currentSongIndex 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : 'hover:bg-gray-100'
+                }`;
+                li.innerHTML = `
+                    <span class="truncate max-w-[220px]">${song.title}</span>
+                    <i class="fa fa-music ${index === currentSongIndex ? '' : 'text-gray-400'}"></i>
+                `;
+                li.addEventListener('click', () => {
+                    if (currentSongIndex !== index) {
+                        currentSongIndex = index;
+                        loadSong(currentSongIndex);
+                        if (!isPlaying) togglePlay();
+                    }
+                });
+                playlistEl.appendChild(li);
+            });
+        }
+
+        function loadSong(index) {
+            const song = songs[index];
+            audioPlayer.src = song.src;
+            currentSongEl.textContent = song.title;
+            updatePlaylistActiveStyle();
+            if (isPlaying) audioPlayer.play();
+        }
+
+        function updatePlaylistActiveStyle() {
+            const songItems = document.querySelectorAll('.song-item');
+            songItems.forEach((item, index) => {
+                if (index === currentSongIndex) {
+                    item.classList.add('bg-primary/10', 'text-primary', 'font-medium');
+                    item.classList.remove('hover:bg-gray-100');
+                    item.querySelector('i').classList.remove('text-gray-400');
+                } else {
+                    item.classList.remove('bg-primary/10', 'text-primary', 'font-medium');
+                    item.classList.add('hover:bg-gray-100');
+                    item.querySelector('i').classList.add('text-gray-400');
+                }
+            });
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                audioPlayer.pause();
+                playBtn.innerHTML = '<i class="fa fa-play text-xl"></i>';
+            } else {
+                audioPlayer.play();
+                playBtn.innerHTML = '<i class="fa fa-pause text-xl"></i>';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function playPrevSong() {
+            currentSongIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+            loadSong(currentSongIndex);
+        }
+
+        function playNextSong() {
+            currentSongIndex = (currentSongIndex + 1) % songs.length;
+            loadSong(currentSongIndex);
+        }
+
+        function updateProgress() {
+            if (isDragging) return;
+
+            const { duration, currentTime } = audioPlayer;
+            if (isNaN(duration)) return;
+
+            const progressPercent = (currentTime / duration) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            progressHandle.style.left = `${progressPercent}%`;
+
+            currentTimeEl.textContent = formatTime(currentTime);
+            totalTimeEl.textContent = formatTime(duration);
+        }
+
+        function formatTime(time) {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        }
+
+        function setVolume() {
+            audioPlayer.volume = volumeControl.value;
+        }
+
+        function seek(e) {
+            const rect = progressContainer.getBoundingClientRect();
+            const clickPos = (e.clientX - rect.left) / rect.width;
+            setAudioPosition(clickPos);
+        }
+
+        function setAudioPosition(percent) {
+            if (isNaN(audioPlayer.duration)) return;
+            const newTime = percent * audioPlayer.duration;
+            audioPlayer.currentTime = newTime;
+            const progressPercent = percent * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            progressHandle.style.left = `${progressPercent}%`;
+            currentTimeEl.textContent = formatTime(newTime);
+        }
+
+        function bindAllEvents() {
+            playBtn.addEventListener('click', togglePlay);
+            prevBtn.addEventListener('click', playPrevSong);
+            nextBtn.addEventListener('click', playNextSong);
+            progressContainer.addEventListener('click', seek);
+            progressContainer.addEventListener('mousedown', () => {
+                isDragging = true;
+                progressContainer.style.cursor = 'grabbing';
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const rect = progressContainer.getBoundingClientRect();
+                    const clientX = Math.max(rect.left, Math.min(e.clientX, rect.right));
+                    const percent = (clientX - rect.left) / rect.width;
+                    setAudioPosition(percent);
+                }
+            });
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    progressContainer.style.cursor = 'pointer';
+                    if (isPlaying) audioPlayer.play();
+                }
+            });
+            volumeControl.addEventListener('input', setVolume);
+            audioPlayer.addEventListener('timeupdate', updateProgress);
+            audioPlayer.addEventListener('ended', playNextSong);
+        }
+    </script>
+</body>
+</html>
